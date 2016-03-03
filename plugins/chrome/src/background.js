@@ -1,63 +1,89 @@
-//Chrome supports 4 types of contexts - selection,page,image,link
-//for our requirement we like the context menu to be enabled only on text selection.
-var contextMenuTitle = "Search on KodeBeagle";
+'use strict';
 
-chrome.contextMenus.create({
-  title: contextMenuTitle,
-  contexts: ["selection"],
-  onclick: evalFunction
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+  if (changeInfo.status !== 'loading') return;
+
+  chrome.tabs.executeScript(tabId, {
+    code: 'var injected = window.octotreeInjected; window.octotreeInjected = true; injected;',
+    runAt: 'document_start'
+  }, function (res) {
+    if (chrome.runtime.lastError || // don't continue if error (i.e. page isn't in permission list)
+    res[0]) // value of `injected` above: don't inject twice
+      return;
+
+    var cssFiles = ['lib/jstree.css', 'lib/octotree.css'];
+
+    var jsFiles = ['lib/jquery.js', 'lib/jquery-ui.js', 'lib/jstree.js', 'lib/keymaster.js', 'lib/ondemand.js', 'lib/octotree.js'];
+
+    eachTask([function (cb) {
+      return eachItem(cssFiles, inject('insertCSS'), cb);
+    }, function (cb) {
+      return eachItem(jsFiles, inject('executeScript'), cb);
+    }]);
+
+    function inject(fn) {
+      return function (file, cb) {
+        chrome.tabs[fn](tabId, { file: file, runAt: 'document_start' }, cb);
+      };
+    }
+  });
 });
 
-// We don't want the search to consider java.lang classes. 
-// This object will be initialized with external JSON file named java_lang_pkg.json
-// This contains all the elements which would be eliminated.
-var javaLangPkg = {};
+chrome.runtime.onMessage.addListener(function (req, sender, sendRes) {
+  var handler = {
+    requestPermissions: function requestPermissions() {
+      var urls = (req.urls || []).filter(function (url) {
+        return url.trim() !== '';
+      }).map(function (url) {
+        if (url.slice(-2) === '/*') return url;
+        if (url.slice(-1) === '/') return url + '*';
+        return url + '/*';
+      });
 
-function evalFunction(data) {
-  var textSelected = data.selectionText,
-    // Replace all special characters with spaces. 
-    // Any character other than A-Z or a-z or 0-9 will be replaced by a blank
-    clearedSelection = textSelected.replace(/(\"[^\"]*\")/g,'').replace(/[^a-zA-Z0-9_]/g, ' ').split(' '),
-    //regex to select only camelcase words    
-    regexPattern = new RegExp("^[A-Z]([A-Za-z])+");
+      if (urls.length === 0) {
+        sendRes(true);
+        removeUnnecessaryPermissions();
+      } else {
+        chrome.permissions.request({ origins: urls }, function (granted) {
+          sendRes(granted);
+          removeUnnecessaryPermissions();
+        });
+      }
+      return true;
 
-  // Load external JSON file named java_lang_pkg.json
-  loadJSON(function(response) {
-    javaLangPkg = JSON.parse(response);
-  });
+      function removeUnnecessaryPermissions() {
+        var whitelist = urls.concat(['https://github.com/*', 'https://gitlab.com/*']);
+        chrome.permissions.getAll(function (permissions) {
+          var toBeRemovedUrls = permissions.origins.filter(function (url) {
+            return ! ~whitelist.indexOf(url);
+          });
 
-  var searchTextArray = [];
-  clearedSelection.forEach(function(keyword) {
-    if (regexPattern.test(keyword) && searchTextArray.indexOf(keyword) === -1 && javaLangPkg[keyword.toLowerCase()] !== true) {
-      searchTextArray.push(keyword);
-    }
-  })
-
-  if (searchTextArray.length === 0) {
-    alert('No keywords found in current selection. You may expand your selection, to include more lines.');
-    return;
-  }
-
-  //append ',' by iterating through each element of the array to make it a final search string
-  //Eg: if we have array as FilterChannel and Filter then extract the array to a string variable 
-  //as finalSearchStr = FilterChannel,Filter;
-  var search = searchTextArray.reduce(function(acc, val) {
-    return acc + "," + val
-  });
-
-  chrome.tabs.create({
-    url: "http://kodebeagle.com/search/#?searchTerms=" + search
-  });
-}
-
-function loadJSON(callback) {
-  var xobj = new XMLHttpRequest();
-  xobj.overrideMimeType("application/json");
-  xobj.open('GET', 'java_lang_pkg.json', false);
-  xobj.onreadystatechange = function() {
-    if (xobj.readyState == 4 && xobj.status == "200") {
-      callback(xobj.responseText);
+          if (toBeRemovedUrls.length) {
+            chrome.permissions.remove({ origins: toBeRemovedUrls });
+          }
+        });
+      }
     }
   };
-  xobj.send(null);
+
+  return handler[req.type]();
+});
+
+function eachTask(tasks, done) {
+  (function next() {
+    var index = arguments.length <= 0 || arguments[0] === undefined ? 0 : arguments[0];
+
+    if (index === tasks.length) done && done();else tasks[index](function () {
+      return next(++index);
+    });
+  })();
+}
+
+function eachItem(arr, iter, done) {
+  var tasks = arr.map(function (item) {
+    return function (cb) {
+      return iter(item, cb);
+    };
+  });
+  return eachTask(tasks, done);
 }

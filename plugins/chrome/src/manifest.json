@@ -3,18 +3,24 @@
 	"name":	"KodeBeagle",
 	"description":	"Quick access to code samples(in Java) from GitHub by searching on kodebeagle.com",
 	"version":	"0.1",
+	"permissions":	[
+		"https://github.com/*",
+	    "https://gitlab.com/*",
+	    "storage",
+		"contextMenus", "activeTab", "tabs",
+		"http://192.168.2.67:9200/*"
+	],
+	"optional_permissions": [
+	    "<all_urls>"
+	],
 	"background":	{
-		"scripts":	["background.js"]
+		"scripts":	["background_kb.js","background.js"]
 	},
 	"content_scripts": [
 		{
 			"matches": ["https://github.com/*"],
-			"js": ["lib/jquery-2.2.0.js", "content_script.js"],
-			"run_at" : "document_end"
+			"js": ["lib/jquery.js","content_script.js"],
+			"run_at" : "document_start"
 		}
-	],
-	"permissions":	[
-		"contextMenus", "activeTab", "tabs",
-		"http://192.168.2.67:9200/*"
 	]
 }

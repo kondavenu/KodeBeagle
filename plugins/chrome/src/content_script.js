@@ -1,38 +1,52 @@
 'use strict';
 
 var PATH_NAME = window.location.pathname.substr(1);
-var KODEBEAGLE_SERVER = "http://192.168.2.67:9200";//192.168.2.67:9200
-//fileMetadata is metadata received from Kodebeagle server
-var linesMeta = {};
-//fileMetadata is parsed and converted to lineMetadata that is a map from lineNumber to all types information
-var filesMeta = {};
-var lineMetaInfo = {},fileMetaInfo = {},storage,loader;
+var KODEBEAGLE_SERVER = "http://192.168.2.67:9200";//192.168.2.67:9200--http://192.168.2.67:9200
+
+/*fileMetaInfo is metadata received from Kodebeagle server,
+    fileMetadata is parsed and converted to lineMetaInfo that is a 
+    map from lineNumber to all types information*/
+
+var lineMetaInfo = {},fileMetaInfo = {};
+
+/*linesMeta & filesMeta is meta information stored in session object of external files 
+    we get from KodeBeagle server being called on each type reference click*/
+
+var linesMeta = {},filesMeta = {};
+var storage,loader;
+
+/*Navigate to method selection from session storage*/
 
 function navigateToSelection(fileMetadata){
-    if(storage.getValue('methodName')){
+    if(storage.getValue('methodInfo')){
         fileMetadata._source.methodDefinitionList.some(function(methodDef) {
-            var sessionStoredArgs = storage.getValue('args');
-            if(methodDef.method == storage.getValue('methodName') && checkArgsEquality(methodDef.argTypes,sessionStoredArgs)){
+            var sessionMethodInfo = storage.getValue('methodInfo');
+            if(isMethodDefEqual(methodDef,sessionMethodInfo)){
                 var lineInfo = methodDef.loc.split("#");
                 scrollAndSelect(lineInfo);
             }
         });
-        storage.deleteValue("methodName");
-        storage.deleteValue("args");
+        storage.deleteValue("methodInfo");
     }
 }
 
-function checkArgsEquality(methodDefArgs,sessionStoredArgs){
-    if (methodDefArgs.length !== sessionStoredArgs.length) {
+/*Check if method definations are equal based on name, arguments & argument types*/
+
+function isMethodDefEqual(methodDef1,methodDef2){
+    if(methodDef1.method !== methodDef2.method){
+        return false;
+    }else if (methodDef1.argTypes.length !== methodDef2.argTypes.length) {
         return false;
     }else{
-        for(var i = 0; i < sessionStoredArgs.length; i++) {
-            if(methodDefArgs[i] !== sessionStoredArgs[i])
+        for(var i = 0; i < methodDef2.argTypes.length; i++) {
+            if(methodDef1.argTypes[i] !== methodDef2.argTypes[i])
                 return false;
         }
         return true;
     }
 }
+
+/*Fetches initial column count on each line from where the content has started*/
 
 function columnCount(rawRowText){
     if(!rawRowText){
@@ -43,7 +57,7 @@ function columnCount(rawRowText){
     if(rawRowText.search('\t') > -1){
         colCount++;
         while(rawRowText.search('\t') > -1){
-            rawRowText = rawRowText.replace('\t','')
+            rawRowText = rawRowText.replace('\t','');
             colCount++;
         }
     }else{
@@ -53,11 +67,14 @@ function columnCount(rawRowText){
                 break;
             }
             colCount++;
-        };  
+        } 
     }
     return colCount;
 }
 
+/*Adds column no.s to each span element word by adding data attribute 'column-number', 
+    If there is no span then creates a span for simple text and adds column no. to 
+    same data attribute. Main idea is to make each word/code/keyword clickable indipendently */
 
 function addColumnNumbers(){
     $('.blob-code-inner').each(function(rowIndex){
@@ -82,7 +99,7 @@ function addColumnNumbers(){
                 span.setAttribute('data-column-number',colCount+spaces);
                 colCount += eachValue.length;
                 doc.appendChild(span);
-            })
+            });
             $(this).append(doc); 
         }else{
             $(this).find('span').each(function(index){
@@ -129,7 +146,7 @@ function addColumnNumbers(){
                             span.setAttribute('data-column-number',colCount+spaces);
                             colCount += eachValue.length;
                             doc.appendChild(span);
-                        })
+                        });
                         $(doc).insertAfter(this);           
                     /*}
                     else{
@@ -145,6 +162,8 @@ function addColumnNumbers(){
         }  
     });
 }
+
+/*Splits a string of special chars in to indipendent words*/
 
 function splitString(str){
     var arrStr = [],
@@ -183,21 +202,49 @@ function match(str){
     return (str.search('\\.') > -1 || str.search('\\(') > -1 || str.search('\\)') > -1 || str.search('\\[') > -1 );
 }
 
+/*Converts meta data from KodeBeagle endpoint to lines of meta information 
+    for each github file visited*/
+
 function parseFileMetadata(hits) {
     linesMeta = {},filesMeta = {};
     hits.forEach(function(eachHit){
         var lineMetadata = {};
         function getParentRef(methodType){
-            var methodDefList = eachHit._source.methodDefinitionList;
+            var methodDefList = eachHit._source.methodDefinitionList,parentRef;
             for(var index = 0;index<methodDefList.length;index++){
-                var methodDef = methodDefList[index],parentRef;
-                if(methodDef.method == methodType.method && checkArgsEquality(methodDef.argTypes,methodType.argTypes)){
+                var methodDef = methodDefList[index];
+                if(isMethodDefEqual(methodDef,methodType)){
                     parentRef = methodDef.loc;
                     break;
                 }
-            };
+            }
             return parentRef;
-        };
+        }
+        function setChildRefs(methodDef){
+            var matchFound = false;
+            eachHit._source.methodTypeLocation.forEach(function(methodType){
+                if(isMethodDefEqual(methodDef,methodType)){
+                    matchFound = true;
+                    var typeInfo = methodDef.loc.split("#");
+                    if(!lineMetadata[typeInfo[0]])
+                        lineMetadata[typeInfo[0]] = [];
+                    methodType.type = "internalRef";
+                    methodType.childLine = methodType.loc;
+                    methodType.parentLine = methodDef.loc;
+                    lineMetadata[typeInfo[0]].push(methodType);
+                }
+            });
+            if(matchFound){
+                var typeInfo = methodDef.loc.split("#");
+                methodDef.type = "internalRef";
+                methodDef.childLine = methodDef.loc;
+                methodDef.parentLine = methodDef.loc;
+                lineMetadata[typeInfo[0]].push(methodDef);
+            }
+        }
+        eachHit._source.methodDefinitionList.forEach(function(methodDef){
+            setChildRefs(methodDef);
+        });
         eachHit._source.typeLocationList.forEach(function(typeLocation){
             var lineInfo = typeLocation.loc.split("#");
             if(!lineMetadata[lineInfo[0]])
@@ -209,11 +256,17 @@ function parseFileMetadata(hits) {
             var typeInfo = methodType.loc.split("#");
             if(!lineMetadata[typeInfo[0]])
                 lineMetadata[typeInfo[0]] = [];
-            if(methodType.id === -1 && getParentRef(methodType)){
-                methodType.type = "internalRef";
-                methodType.childLine = methodType.loc;
-                methodType.parentLine = getParentRef(methodType);
-                lineMetadata[typeInfo[0]].push(methodType);
+            if(methodType.id === -1){ 
+                var parentRef = getParentRef(methodType);
+                if(parentRef){
+                    methodType.type = "internalRef";
+                    methodType.childLine = methodType.loc;
+                    methodType.parentLine = parentRef;
+                    lineMetadata[typeInfo[0]].push(methodType);
+                }else{
+                    methodType.type = "methodType";
+                    lineMetadata[typeInfo[0]].push(methodType);    
+                }
             }else{
                 methodType.type = "methodType";
                 lineMetadata[typeInfo[0]].push(methodType);
@@ -232,6 +285,8 @@ function parseFileMetadata(hits) {
     storage.setValue('linesMeta',linesMeta);
     storage.setValue('filesMeta',filesMeta);
 }
+
+/*Adds the css style to code based on lines meta information*/
 
 function highliteReferences(lineMetadata){
     for(var eachLine in lineMetadata){
@@ -261,6 +316,8 @@ function createLinks(lineInfo){
     $(element).addClass('referenced-links');
 }
 
+/*Fetches the child references for each type references with in the file*/
+
 function getChildLines(lineMeta){
     var references = [];
     for(var eachLine in lineMetaInfo){
@@ -273,7 +330,7 @@ function getChildLines(lineMeta){
                 }
             }
         });
-    };
+    }
     return references;
 }
 
@@ -290,11 +347,11 @@ function getMatchedTypes(event) {
     var target = $(event.target).hasClass('referenced-links')?event.target:$(event.target.parentNode).hasClass('referenced-links')?event.target.parentNode:null;
     if(target) {
         clearBoldLinks();
-        if($($(target).siblings()[0]).text() === 'import'){
+        /*if($($(target).siblings()[0]).text() === 'import'){
             var source = target.innerText;
             getMatchedSourceFiles(source, event);
             return;
-        }
+        }*/
 
         var lineNumber = target.closest("tr").children[0].attributes["data-line-number"].value,
             lineMeta = lineMetaInfo[lineNumber], sourceFile = "";
@@ -325,8 +382,7 @@ function getMatchedTypes(event) {
                     fileMetaInfo._source.externalRefList.some(function(externalRef){
                         if(externalRef.id === typeId) {
                             sourceFile = externalRef.fqt;
-                            storage.setValue('methodName',typeInfo.method);
-                            storage.setValue('args',typeInfo.argTypes);
+                            storage.setValue('methodInfo',typeInfo);
                             return true;
                         }
                     });
@@ -385,14 +441,15 @@ function scrollAndSelect(lineInfo,target){
         scrollTop: rowEle.offset().top - 20
     }, 500);
     selectRow(rowEle);
-    if(target){
+    /*if(target){
+        //hack for parent reference selection
         element = rowEle.find(":contains("+target.innerText.trim()+")")[0];
         if(!element){
             element = rowEle.find("span[data-column-number="+lineInfo[1]+"]")[0];    
         }
-    }else{
+    }else{*/
         element = rowEle.find("span[data-column-number="+lineInfo[1]+"]")[0];
-    }
+    //}
     selectText(element);
 }
 
@@ -421,9 +478,11 @@ function getMatchedSourceFiles(sourceFile, event) {
         parseFileMetadata(response.hits.hits);
       }
     };
-    xhr.open("POST", KODEBEAGLE_SERVER+"/filemetadata/typefilemetadata/_search", true);
+    
+    var request = createGETRequest('must',sourceFile,'fileTypes.underlying.fileType');
+    xhr.open("GET", KODEBEAGLE_SERVER+"/filemetadata/typefilemetadata/_search?source="+request, true);
     xhr.setRequestHeader("Content-type", "application/json");
-    xhr.send("{\"query\":{\"bool\":{\"must\":[{\"term\":{\"fileTypes.fileType\":\""+ sourceFile + "\"}}]}}}");
+    xhr.send();
 }
 
 function hideLoader(event){
@@ -432,7 +491,7 @@ function hideLoader(event){
 
 var showLoader = function(event){
     event.target.parentNode.appendChild(loader);
-}
+};
 
 function showInternalReferences(internalReferences, position) {
     var div = createInternalRefDiv(internalReferences);
@@ -449,7 +508,7 @@ function showDropDown(matchedSourceFiles, position) {
 function addCSS(){
     var style = document.createElement('style');
     style.type = 'text/css';
-    style.innerHTML = '.referenced-links{cursor:pointer;} .referenced-links:hover{color:blue;text-decoration:underline;} .links-box{z-index:1;max-width:700px;max-height:315px;overflow:auto;background:inherit;border:solid 2px #337ab7;position:absolute;} .links-box .external-ref{padding:10px;cursor:pointer;display:block;border-bottom:solid 1px #ddd;} .links-box span:hover{ background:#EAEAEA;}.links-box div:hover{background : #eaeaea;} .links-box div {cursor : pointer;border-bottom : 1px solid #ddd;} .links-box div span{padding : 10px;display:table-cell;} .reference-loader{display:inline-table;}.reference-loader img{margin-bottom:-5px;} .select-row-color{background:#ddd;}';
+    style.innerHTML = '.referenced-links{cursor:pointer;} .referenced-links:hover{color:blue;text-decoration:underline;} .links-box{z-index:1;max-width:700px;max-height:315px;overflow:auto;background:inherit;border:solid 2px #337ab7;position:absolute;border-radius:5px;} .links-box .external-ref{padding:10px;cursor:pointer;display:block;border-bottom:solid 1px #ddd;} .links-box span:hover{ background:#EAEAEA;}.links-box div:hover{background : #eaeaea;} .links-box div {cursor : pointer;border-bottom : 1px solid #ddd;} .links-box div span{padding : 10px;display:table-cell;} .links-box::-webkit-scrollbar{width:8px;} .links-box::-webkit-scrollbar-track{background:#eaeaea;border-left:solid 1px #ddd;border-radius:10px;} .links-box::-webkit-scrollbar-thumb{background:#ccc;border-radius:10px;} .links-box::-webkit-scrollbar-thumb:hover{background:#aaa;}.reference-loader{display:inline-table;}.reference-loader img{margin-bottom:-5px;} .select-row-color{background:#ddd;}';
     document.getElementsByTagName('head')[0].appendChild(style);
 }
 
@@ -468,7 +527,7 @@ function createSelectionDiv(matchedSourceFiles) {
             span.textContent = sourceFile._source.fileName;
             span.onclick = function() {
                 window.location.href = "https://github.com/" + sourceFile._source.fileName;
-            }
+            };
             doc.appendChild(span);
         });
     }
@@ -514,9 +573,20 @@ function createInternalRefDiv(references) {
 
 var cloneLoader = function(){
     loader = $('.page-context-loader').clone().addClass('reference-loader')[0];
+};
+
+function createGETRequest(boolKey,fileName,termKey){
+    var req = {};
+    req.query = {};
+    req.query.bool = {};
+    var term = {};
+    term[termKey] = fileName;
+    req.query.bool[boolKey] = [{'term':term}];
+    req = JSON.stringify(req);
+    return req;
 }
 
-var Storage = (function () {
+var kbStorage = (function () {
     'use strict';
 
     var instance;
@@ -537,8 +607,8 @@ var Storage = (function () {
             deleteValue:function(key){
                 sessionStorage.removeItem(key);
             }
-        }
-    };
+        };
+    }
   
     return {
         getInstance:function(){
@@ -550,15 +620,16 @@ var Storage = (function () {
     };
 })();
 
-(function(){
+jQuery(document).ready(function(){
     'use strict';
 
     if(PATH_NAME.endsWith(".java")) {
         addCSS();
-        createLinksForImports();
+        //hack for imports highliting for metadata absense.
+        //createLinksForImports();
         addColumnNumbers();
         cloneLoader();
-        storage = Storage.getInstance();
+        storage = kbStorage.getInstance();
 
         document.getElementsByClassName("file")[0].addEventListener('click', getMatchedTypes, false);
         if(storage.getValue('linesMeta') && storage.getValue('linesMeta')[PATH_NAME]){
@@ -579,13 +650,15 @@ var Storage = (function () {
                     parseFileMetadata(response.hits.hits);
                     fileMetaInfo = filesMeta[PATH_NAME];
                     lineMetaInfo = linesMeta[PATH_NAME];
-                    highliteReferences(lineMetaInfo)
+                    highliteReferences(lineMetaInfo);
                 }
               }
             };
-            xhr.open("POST", KODEBEAGLE_SERVER+"/filemetadata/typefilemetadata/_search", true);
+            
+            var request = createGETRequest('should',PATH_NAME,'fileName');
+            xhr.open("GET", KODEBEAGLE_SERVER+"/filemetadata/typefilemetadata/_search?source="+request, true);
             xhr.setRequestHeader("Content-type", "application/json");
-            xhr.send("{\"query\":{\"bool\":{\"should\":[{\"term\":{\"fileName\":\""+ PATH_NAME + "\"}}]}}}");
+            xhr.send();
         }
     }
-})();
+});
