@@ -34,15 +34,15 @@
           methodName = '/typejs';
         }else if(model.searchOptions.selectedSearchType === model.langConstants.SCALA){
           token = 'tokens.importName';
-          methodName = '/typescala';
+          methodName = '/scalaexternal';
         }else{
-          token = 'tokens.importName';
-          methodName = '/typeimportsmethods';
+          token = 'types.typeName';
+          methodName = '/javaexternal';
         }
         queryBlock = getQuery(correctedQuery, token, 'must');
         queryES(
           {
-            indexName: 'importsmethods',
+            indexName: 'typereferences',
             methodName:methodName,
             queryBody: {
               'query': queryBlock,
@@ -71,7 +71,8 @@
               var result = {};
               result[ prefix ] = {
               };
-              result[ prefix ][ token ] =  queryTerm.trim().toLowerCase();
+              // todo - need to decide to make queryTerm.trim().toLowerCase()
+              result[ prefix ][ token ] =  queryTerm.trim();
               return result;
           } );
         var returnObj = {};
@@ -231,32 +232,33 @@
             matchedImportLines = {};
 
           files.forEach(function(f) {
-            var matchingTokens = filterRelevantTokens(obj.searchString.toLowerCase(), f._source.tokens)
+            // todo - need to decide to make searchString.toLowerCase()
+            var matchingTokens = filterRelevantTokens(obj.searchString, f._source.types)
                 ;
 
 
             matchingTokens.map(function(x) {
-              matchingImports[x.importExactName] = matchingImports[x.importExactName] || {
+              matchingImports[x.typeName] = matchingImports[x.typeName] || {
                 methodCount : 0,
                 methods: [],
-                importName: x.importExactName
+                importName: x.typeName
               };
-              matchingImports[x.importExactName].methodCount++;
-              matchingImports[x.importExactName].methods = matchingImports[x.importExactName].methods.concat(x.methodAndLineNumbers.map(function(m) {
-                return 'm_' + m.methodName
+              matchingImports[x.typeName].methodCount++;
+              matchingImports[x.typeName].methods = matchingImports[x.typeName].methods.concat(x.properties.map(function(m) {
+                return 'm_' + m.propertyName
               }));
-              fileMatchingImports[x.importExactName] = fileMatchingImports[x.importExactName] || [];
-              fileMatchingImports[x.importExactName] = fileMatchingImports[x.importExactName].concat(x.methodAndLineNumbers.map(function(m) {
-                return 'm_' + m.methodName
+              fileMatchingImports[x.typeName] = fileMatchingImports[x.typeName] || [];
+              fileMatchingImports[x.typeName] = fileMatchingImports[x.typeName].concat(x.properties.map(function(m) {
+                return 'm_' + m.propertyName
               }));
 
-              matchedImportLines[ x.importExactName ] = matchedImportLines[ x.importExactName] || [];
-              matchedImportLines[ x.importExactName] = matchedImportLines[ x.importExactName].concat( x.lineNumbers );
+              matchedImportLines[ x.typeName ] = matchedImportLines[ x.typeName] || [];
+              matchedImportLines[ x.typeName] = matchedImportLines[ x.typeName].concat( x.lines );
 
-              x.methodAndLineNumbers.map( function( m ) {
+              x.properties.map( function( m ) {
 
-                matchedMethodLines[ 'm_' + m.methodName ] = matchedMethodLines[ 'm_' + m.methodName ] || [];
-                matchedMethodLines[ 'm_' + m.methodName ] = matchedMethodLines[ 'm_' + m.methodName ].concat( m.lineNumbers );
+                matchedMethodLines[ 'm_' + m.propertyName ] = matchedMethodLines[ 'm_' + m.propertyName ] || [];
+                matchedMethodLines[ 'm_' + m.propertyName ] = matchedMethodLines[ 'm_' + m.propertyName ].concat( m.lines );
 
               } );
             });
@@ -321,7 +323,7 @@
               correctedTerm = term.trim().replace( /\*/g, '.*' ).replace( /\?/g, '.{1}' );
 
           matchingTokens = tokens.filter( function( tk ) {
-              return ( tk.importName ).search( correctedTerm ) >= 0;
+              return ( tk.typeName ).search( correctedTerm ) >= 0;
           } );
           return matchingTokens;
         } );
