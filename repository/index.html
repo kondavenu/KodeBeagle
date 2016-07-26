@@ -21,7 +21,7 @@ basepath: ../
               </span>
             </span>
             </p>
-            <div class="row">
+            <div class="row line-chart">
               <linechart data="data" options="options"></linechart>
             </div>
             <div class="row">
@@ -155,7 +155,7 @@ basepath: ../
                 commits: $scope.repoInfo.metricsForChart
               }
               $scope.options = {
-                margin: {top: 20, right:0, bottom:30},
+                margin: {top: 20, right:0},
                 series: [
                   {
                       axis: "y",
@@ -167,7 +167,12 @@ basepath: ../
                       id: 'repoCommits'
                   }
                 ],
-                axes: {x: {key: "name", type:"date"}}
+                axes: {
+                  x: {
+                    key: "name",
+                    type: "date"
+                  }
+                }
               }
             });
 
