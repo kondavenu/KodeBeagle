@@ -148,11 +148,12 @@ basepath: ../
               $scope.repoInfo.commitDetails.forEach(function(details){
                 details.timeStamp = getElapsedTime(details.timeStamp);
               });
-              $scope.repoInfo.metricsForChart.forEach(function(eachMetric){
+              $scope.commits = $scope.repoInfo.metricsForChart.filter(function(eachMetric){
                 eachMetric.name = new Date(eachMetric.name);
+                return eachMetric.name > new Date(new Date().setFullYear(new Date().getFullYear() - 1));
               });
               $scope.data = {
-                commits: $scope.repoInfo.metricsForChart
+                commits: $scope.commits
               }
               $scope.options = {
                 margin: {top: 20, right:0},
