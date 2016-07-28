@@ -43,8 +43,11 @@
                           <div class="panel panel-default editor">
                               <div class="panel-heading"  ng-dblclick="fullExpandView( $event, item, $index )">
                                   <div class="pull-left">
-                                      <a ng-click="toggleExpand( $event, $index, item );" target="_blank" tooltip-placement="top" tooltip="{{item.collapsed&&'Collapse' || 'Expand'}}">
-                                          <span class="fa fa-expand" ng-class=
+                                      <a
+                                      ng-href="./../explore/#?path={{item.fileInfo.path}}" 
+                                      target="_blank" tooltip-placement="top" tooltip="{{item.collapsed&&'Collapse' || 'Expand'}}">
+                                          <span ng-click="toggleExpand( $event, $index, item );" 
+                                            class="fa fa-expand" ng-class=
                                       "{'fa-compress':item.collapsed}">
                                           </span>
                                           {{item.fileInfo.repo}}/{{item.fileInfo.name}}
