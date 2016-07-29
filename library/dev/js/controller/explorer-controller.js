@@ -12,18 +12,34 @@
         http
     ) {
         var search = $location.search();
-        var request = createGETRequest('should',search.path,'fileName');
-        
-        http.get(model.config.esURL + "/filemetadata/typefilemetadata/_search?source="+request)
-        .then( function( res ) {
-            $scope.item = {};
-            $scope.item.repository = res.hits.hits[0]._source.repository;
-            $scope.item.files = res.hits.hits[ 0 ]._source.files;
-            $scope.item.terms = res.hits.hits[0]._source.terms;
-        }, function( err ) {
-            console.log( err );
-        } );
+        var queryBody = {
+              'query': {
+                'bool': {
+                  'should' : [{'term':{'fileName':search.filename}}]
+                }
+              }
+            };
+        var url = model.config.esURL
+                  + '/sourcefile/_search?size=50'
+                  + '&source='+ JSON.stringify(queryBody);
 
+        http.get(url)
+        .then(fileSource)
+        .then(getMetaInfo)
+        .then(processMetaInfo);
+
+        function fileSource(res) {
+          $scope.fileInfo = res.hits.hits[0]._source;
+        }
+
+        function getMetaInfo() {
+          var request = createGETRequest('should',search.filename,'fileName');
+          return http.get(model.config.esURL + "/filemetadata/typefilemetadata/_search?source="+request);
+        }
+
+        function processMetaInfo(res) {
+
+        }
 
         function createGETRequest(boolKey,fileName,termKey){
             var req = {};
