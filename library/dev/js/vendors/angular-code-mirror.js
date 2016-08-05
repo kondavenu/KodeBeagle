@@ -1346,6 +1346,8 @@ var prettyPrint;
       // color odd/even rows, or any other row pattern that
       // is co-prime with 10.
       li.className = 'L' + ((i + offset) % 10);
+      li.className += ' eachrow';
+      li.setAttribute('data-line-number', i+1);
       if( opt_heilightLines && opt_heilightLines.indexOf( i + opt_startLineNum ) != -1 ) {
         li.className += ' active-line';
         li.setAttribute("line_number", i + opt_startLineNum)

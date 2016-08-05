@@ -1,0 +1,75 @@
+.links-box {
+  z-index:1;
+  max-width:700px;
+  max-height:315px;
+  overflow:auto;
+  background:inherit;
+  border:solid 2px #337ab7;
+  position:absolute;
+  border-radius:5px;
+
+  .external-ref {
+    padding:10px;
+    cursor:pointer;
+    display:block;
+    border-bottom:solid 1px #ddd;
+  }
+
+  span:hover, a:hover { 
+    background:#EAEAEA;
+  }
+
+  div {
+    cursor : pointer;
+    border-bottom : 1px solid #ddd;
+  }
+
+  div:hover {
+    background : #eaeaea;
+  }
+
+  div span {
+    padding : 10px;
+    display:table-cell;
+  }
+}
+
+.repository {
+  .reference-loader {
+    display:inline-table;
+
+    img { 
+      margin-bottom:-5px;
+    }
+  }
+  
+  .select-row-color {
+    background:darkseagreen;
+  }
+
+  .referenced-links {
+    cursor:pointer;
+  }
+
+  .referenced-links:hover {
+    color:blue;text-decoration:underline;
+  }
+}
+
+.links-box::-webkit-scrollbar {
+  width:8px;
+}
+
+.links-box::-webkit-scrollbar-track {
+  background:#eaeaea;
+  border-left:solid 1px #ddd;
+  border-radius:10px;
+}
+
+.links-box::-webkit-scrollbar-thumb {
+  background:#ccc;border-radius:10px;
+}
+
+.links-box::-webkit-scrollbar-thumb:hover {
+  background:#aaa;
+}
