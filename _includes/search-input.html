@@ -7,7 +7,7 @@
             <a href="#" ng-class="{'active':!model.isCode}" ng-click=changeSearchType($event,'keyword')>keyword</a> <span ng-if="model.searchOptions.selectedSearchType !== model.langConstants.JAVA_SCRIPT">| <a href="#" ng-class="{'active':model.isCode}" ng-click=changeSearchType($event,'snippet')> snippet </a></span>
         </p>
         <div class="search-main-container">
-            <div class="drop-down-container" ng-style="{'margin-top':model.isCode?'55px':'0px'}">
+            <div class="drop-down-container hide" ng-style="{'margin-top':model.isCode?'55px':'0px'}">
                 <drop-down selected="model.searchOptions.selectedSearchType" values="model.searchOptions.searchTypes"></drop-down>
             </div>
             <div class="search-container" ng-class="{'search-item-present': !model.isCode && (model.selectedTexts.length || model.searchText) || (model.searchCode && model.isCode) }">
@@ -17,12 +17,15 @@
                     <input type="submit" class="hide"/>
                     <span class="selected-text" ng-repeat="item in model.selectedTexts track by $index" ng-dblclick="handleSelectedText( $event, $index )">
                         {% raw  %}
-                            {{item}}
+                            {{item.term}}
                         {% endraw %}
                         <i href="#" class="glyphicon glyphicon-remove" ng-click="deleteItem( $event, $index )"></i>
                     </span>
-                    <input type="text" ng-if="!model.isCode" name="searchText" id="searchText" ng-model="model.searchText" ng-keydown="handleSearchText( $event )"  ng-focusout="searchTextFocusout()" placeholder="Search here Eg: FileChannel, MappedByteBuffer"
-                    autocomplete="off"
+                    
+                    <input type="text" ng-if="!model.isCode" name="searchText" id="searchText" 
+                      ng-model="model.searchText" ng-keyup="handleSearchText( $event )"
+                      ng-focusout="searchTextFocusout()" placeholder="Search here Eg: FileChannel, MappedByteBuffer"
+                      autocomplete="off"
                     />
                     <textarea name="searchText" ng-if="model.isCode" ng-model="model.searchCode" id="searchCode"></textarea>
                     <div style="clear:both;"></div>
@@ -36,6 +39,14 @@
                 >
                 </button>
             </div>
+            <div class="type-ahead-wrapper"
+             ng-show="isOpen" ng-blur=isOpen=false;>
+              <ul class="">
+                <li ng-repeat="searchType in searchTypes track by $index"
+                  ng-mouseenter="selectActive($index)" ng-bind="searchType.term" ng-click="selectMatch($index)">
+                </li>
+              </ul>
+          </div>
         </div>
     </form>
 </div>

@@ -7,7 +7,6 @@
   kb.updateEditorsList = function  ( data, pkgs, model, docs ) {
 
 
-    model.filterNotFound = true;
     model.expandedItem = false;
     
     var editors = model.editors;

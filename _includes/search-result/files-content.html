@@ -16,7 +16,7 @@
                         {{model.totalFiles}}
                     </span>
                 </strong>
-                out of <strong>{{model.totalFiles}}</strong> files
+                <!-- out of <strong>{{model.totalFiles}}</strong> files -->
                 <span ng-if="model.totalHitCount !== model.hitCount">
                 ( total matches <strong>{{model.totalHitCount}}</strong>  )
                 </span>
@@ -70,12 +70,10 @@
                                           <div class="snippet-holder">
                                               <div ng-repeat="snipp in item.linesData" class="snipp" ng-class="{'codeshown':snipp.state || snipp.show}" code-snipp-ele>
                                                   <div class="code" ng-class="{'collapsable-code':!snipp.state}" >
-
-                                                  <code-mirror lang="{{model.searchOptions.langType}}" line-numbers="snipp.start + 1" model="snipp.content" code-mirror-ready
-                                                  row-heilight="snipp.lineNumbers"
-                                                  >
-                                                  </code-mirror>
-
+                                                    <code-mirror lang="{{model.searchOptions.langType}}" line-numbers="snipp.start + 1" model="snipp.content" code-mirror-ready
+                                                    row-heilight="snipp.lineNumbers"
+                                                    >
+                                                    </code-mirror>
                                                   </div>
                                                   <pre class='dots' ng-if="!snipp.state"><span ng-click="toggleCode( snipp )"></span></pre>
                                               </div>
@@ -119,7 +117,7 @@
             <div ng-if="model.filterNotFound">
                 <p>Could not find any match for filter  </p>
             </div>
-            <div ng-if="!(model.editors && model.editors.length>0) && !model.filterNotFound">
+            <div ng-if="(model.editors && model.editors.length === 0 && !model.filterNotFound)">
                 <div class="text-center">loading...</div>
             </div>
         </div>

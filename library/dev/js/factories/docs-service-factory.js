@@ -2,9 +2,9 @@
 
 	module
   .factory('docsService', [
-    'http','model',
+    'http','model', '$http',
     function(
-      http,model
+      http,model,$http
     ) {
 
       var settings;
@@ -565,8 +565,80 @@
           } );
       };
 
+      function searchRequest(selectedTexts) {
+        var searchRequest = {
+          "queries": selectedTexts,
+          "from": model.currentPageNo * 10,
+          "size": 10
+        };
+        var searchRequest = JSON.stringify(searchRequest);
+        searchRequest = searchRequest.replace(/\(\)/,'');
+        searchTypes(searchRequest);
+      }
+
+      function searchTypes(searchRequest) {
+        model.editors = [];
+        model.emptyResponse = false;
+        model.filterNotFound = false;
+
+        $http.get(settings.esURL + '/search?query='+searchRequest)
+        .then(function(result){
+          if (result && result.data && result.data.hits.length === 0) {
+            model.emptyResponse = true;
+            return;
+          }
+          model.showPageResponse = true;
+          model.totalFiles = result.data.total_hits;
+          model.totalHitCount = result.data.total_hits;
+          var linesObj,linesData = [], imports = {};
+
+          result.data.hits.forEach(function(eachFile){
+            var lines = [];
+            eachFile.types.forEach(function(eachType){
+              imports[eachType.name] = eachType.name;
+              eachType.props.forEach(function(eachProp){
+                eachProp.lines.forEach(function(eachLine){
+                  linesObj = {'lineNumber':eachLine[0],'columnStart':eachLine[1],'columnEnd':eachLine[2]}
+                  lines.push(linesObj);
+                });
+              });
+            });
+            var sortedLined = uniqueAndSortLines(lines);
+            var labels = getFileName(eachFile.fileName);
+            var fileObj = {
+              'content':eachFile.fileContent,
+              'fileInfo':{
+                'lines':sortedLined,
+                'repo': labels.repo,
+                'name': labels.file,
+                'path':eachFile.fileName
+              }
+            };
+            linesData.push(fileObj);
+          });
+
+          if( !model.filterSelected ) {
+            $http.get(settings.esURL + '/properties?query=' + JSON.stringify(Object.keys(imports)))
+            .then(importsHandler);
+          }
+
+          var editors = [];
+          for (var i=0; i<linesData.length; i++) {
+            editors.push(splitFileContent( linesData[i].content, linesData[i].fileInfo, model.config.offset || 2 ));
+          }
+          model.editors = editors;
+        }, function(error){
+          model.emptyResponse = true;
+        });
+      }
+
+      function importsHandler(res) {
+        model.groupedMethods = res.data;
+      }
+
       return {
         search: search,
+        searchRequest: searchRequest,
         getFilteredFiles: getFilteredFiles,
         config: function( obj ) {
           settings = obj
@@ -582,7 +654,9 @@
           return this[ key ];
         },
         updatedLineNumbers: updatedLineNumbers,
-        searchRepotopic: searchRepotopic
+        searchRepotopic: searchRepotopic,
+        fileName: getFileName,
+        uniqueAndSortLines: uniqueAndSortLines
       };
     }
   ]);

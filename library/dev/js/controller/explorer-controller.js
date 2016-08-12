@@ -15,45 +15,60 @@
             fileMetadata is parsed and converted to lineMetaInfo that is a 
             map from lineNumber to all types information*/
 
-        var lineMetaInfo = {},fileMetaInfo = {};
+        var lineMetaInfo = {}, fileMetaInfo = {};
 
         /*linesMeta & filesMeta is meta information stored in session object of external files 
             we get from KodeBeagle server being called on each type reference click*/
 
         var linesMeta = {},filesMeta = {};
         var loader;
-        var search = document.location.search.split('?filename=')[1];
+        var fileName = document.location.search.split('?filename=')[1];
 
         init();
 
         function init() {
           var queryBody = sourceRequest();
           var url = model.config.esURL
-                    + '/sourcefile/_search?size=50'
-                    + '&source='+ JSON.stringify(queryBody);
-
+                    + '/source'
+                    + '?file='+ fileName;
+          //basepath +"library/data/source.txt"
           http.get(url)
           .then(fileSource);
         }
         
         function fileSource(res) {
-          $scope.fileInfo = res.hits.hits[0]._source;
+          $scope.fileInfo = {
+            fileName: fileName,
+            fileContent: res
+          }
           setTimeout(()=>addColumnNumbers(),10);
         }
 
         function getMetaInfo() {
-          var request = createGETRequest('should',search,'fileName');
-          var url = model.config.esURL + "/filemetadata/typefilemetadata/_search?source="+request;
-          http.get(url)
-          .then(processMetaInfo);
+          if(model.sessionStorage.getValue('linesMeta') && model.sessionStorage.getValue('linesMeta')[fileName]){
+            fileMetaInfo = model.sessionStorage.getValue('filesMeta')[fileName];
+            lineMetaInfo = model.sessionStorage.getValue('linesMeta')[fileName];
+            navigateToSelection(fileMetaInfo);
+            highliteReferences(lineMetaInfo);
+
+            model.sessionStorage.deleteValue("filesMeta");
+            model.sessionStorage.deleteValue("linesMeta");
+          } else {
+            var request = createGETRequest('should',fileName,'fileName');
+            var url = model.config.esURL + "/metadata?file="+fileName;
+            //basepath +"library/data/meta.json"
+            http.get(url)
+            .then(processMetaInfo);
+          }
         }
 
         function processMetaInfo(response) {
-          if(response.hits.hits && response.hits.hits.length > 0){
-            navigateToSelection(response.hits.hits[0]);
-            parseFileMetadata(response.hits.hits);
-            fileMetaInfo = filesMeta[search];
-            lineMetaInfo = linesMeta[search];
+          var metadata = response;
+          if(metadata){
+            navigateToSelection(metadata);
+            parseFileMetadata(metadata);
+            fileMetaInfo = filesMeta[fileName];
+            lineMetaInfo = linesMeta[fileName];
             highliteReferences(lineMetaInfo);
           }
         }
@@ -62,7 +77,7 @@
           var queryBody = {
                 'query': {
                   'bool': {
-                    'should' : [{'term':{'fileName':search}}]
+                    'should' : [{'term':{'fileName':fileName}}]
                   }
                 }
               };
@@ -100,8 +115,25 @@
           $('.eachrow').each(function(rowIndex){
             var colCount = 0;
             $(this).find('span').each(function(index){
-              $(this).attr('data-column-number', colCount);
-              colCount += $(this).text().length;
+              if(index === 0 && $(this).text().trim()){
+                  var doc = document.createDocumentFragment(), 
+                      text = $(this).text(), spaces = columnCount(text);
+                  
+                  if(spaces > 0){
+                      var emptySpan = document.createElement('span');
+                      emptySpan.innerHTML = text.substr(0,spaces);
+                      doc.appendChild(emptySpan);
+                      $(doc).insertBefore(this);
+                      colCount += spaces;
+                      $(this).text(text.substr(spaces,text.length));     
+                  }
+                  $(this).attr('data-column-number', colCount);
+                  colCount += text.length - spaces;
+              }
+              else {
+                $(this).attr('data-column-number', colCount);
+                colCount += $(this).text().length;
+              }
               
               if(this.nextSibling){
                 var text = this.nextSibling.innerHTML;
@@ -118,10 +150,10 @@
 
         function navigateToSelection(fileMetadata){
           if(model.sessionStorage.getValue('methodInfo')){
-            fileMetadata._source.methodDefinitionList.some(function(methodDef) {
+            fileMetadata.methodDefinitionList.some(function(methodDef) {
               var sessionMethodInfo = model.sessionStorage.getValue('methodInfo');
               if(isMethodDefEqual(methodDef,sessionMethodInfo)){
-                var lineInfo = methodDef.loc.split("#");
+                var lineInfo = methodDef.loc;
                 scrollAndSelect(lineInfo);
               }
             });
@@ -148,12 +180,13 @@
         /*Converts meta data from KodeBeagle endpoint to lines of meta information 
             for each github file visited*/
 
-        function parseFileMetadata(hits) {
+        function parseFileMetadata(metaData) {
           linesMeta = {},filesMeta = {};
+          var hits = metaData;
           hits.forEach(function(eachHit){
             var lineMetadata = {};
             function getParentRef(methodType){
-              var methodDefList = eachHit._source.methodDefinitionList,parentRef;
+              var methodDefList = eachHit.methodDefinitionList,parentRef;
               for(var index = 0;index<methodDefList.length;index++){
                 var methodDef = methodDefList[index];
                 if(isMethodDefEqual(methodDef,methodType)){
@@ -165,7 +198,7 @@
             }
             function setChildRefs(methodDef){
               var matchFound = false;
-              eachHit._source.methodTypeLocation.forEach(function(methodType){
+              eachHit.methodTypeLocation.forEach(function(methodType){
                 if(isMethodDefEqual(methodDef,methodType)){
                   matchFound = true;
                   var typeInfo = methodDef.loc.split("#");
@@ -185,17 +218,17 @@
                 lineMetadata[typeInfo[0]].push(methodDef);
               }
             }
-            eachHit._source.methodDefinitionList.forEach(function(methodDef){
-              setChildRefs(methodDef);
+            eachHit.methodDefinitionList.forEach(function(methodDef){
+              //setChildRefs(methodDef);
             });
-            eachHit._source.typeLocationList.forEach(function(typeLocation){
+            /*eachHit.typeLocationList.forEach(function(typeLocation){
               var lineInfo = typeLocation.loc.split("#");
               if(!lineMetadata[lineInfo[0]])
                   lineMetadata[lineInfo[0]] = [];
               typeLocation.type = "typeLocation";
               lineMetadata[lineInfo[0]].push(typeLocation);
             });
-            eachHit._source.methodTypeLocation.forEach(function(methodType){
+            eachHit.methodTypeLocation.forEach(function(methodType){
               var typeInfo = methodType.loc.split("#");
               if(!lineMetadata[typeInfo[0]])
                 lineMetadata[typeInfo[0]] = [];
@@ -214,16 +247,41 @@
                 methodType.type = "methodType";
                 lineMetadata[typeInfo[0]].push(methodType);
               }
+            });*/
+            eachHit.externalRefList.forEach(function(external){
+              external.vars.forEach(function(eachVar){
+                external.type = 'externalRefType';
+                if(!lineMetadata[eachVar[0]])
+                  lineMetadata[eachVar[0]] = [];
+                lineMetadata[eachVar[0]].push(external);
+              });
+
+              external.methods.forEach(function(method){
+                external.type = 'externalRefMethod';
+                method.loc.forEach(function(eachLoc){
+                  if(!lineMetadata[eachLoc[0]])
+                    lineMetadata[eachLoc[0]] = [];
+                  lineMetadata[eachLoc[0]].push(external);  
+                });
+              });
             });
-            eachHit._source.internalRefList.forEach(function(internalRef){
-              var refInfo = internalRef.childLine.split("#");
-              if(!lineMetadata[refInfo[0]])
-                  lineMetadata[refInfo[0]] = [];
-              internalRef.type = "internalRef";
-              lineMetadata[refInfo[0]].push(internalRef);
+            eachHit.internalRefList.forEach(function(internalRef, index){
+              internalRef.type = "internalRefChild";
+              internalRef.c.forEach(function(ref){
+                if(!lineMetadata[ref[0]])
+                  lineMetadata[ref[0]] = [];
+                lineMetadata[ref[0]].push(internalRef);
+              });
+              var parent = angular.copy(internalRef);
+              if(parent.p && parent.p.length > 0 ) {
+                if(!lineMetadata[parent.p[0]])
+                  lineMetadata[parent.p[0]] = [];
+                parent.type = "internalRefParent";
+                lineMetadata[parent.p[0]].push(parent);
+              }
             });
-            linesMeta[eachHit._source.fileName] = lineMetadata;
-            filesMeta[eachHit._source.fileName] = eachHit;
+            linesMeta[eachHit.fileName] = lineMetadata;
+            filesMeta[eachHit.fileName] = eachHit;
           }); 
           model.sessionStorage.setValue('linesMeta',linesMeta);
           model.sessionStorage.setValue('filesMeta',filesMeta);
@@ -234,13 +292,22 @@
         function highliteReferences(lineMetadata){
           for(var eachLine in lineMetadata){
             lineMetadata[eachLine].forEach(function(eachColumn){
-              if(eachColumn.type === 'internalRef'){
-                var parentLine = eachColumn.parentLine.split('#');
-                var childLine = eachColumn.childLine.split('#');
-                //if(parentLine[0] != childLine[0]){
-                    createLinks(childLine);
-                //}
-              }else{
+              if(eachColumn.type === 'internalRefChild'){
+                eachColumn.c.forEach(function(eachColumn){
+                  createLinks(eachColumn);
+                });
+              } else if(eachColumn.type === 'internalRefParent'){
+                createLinks(eachColumn.p);
+              } else if (eachColumn.type === 'externalRefMethod') {
+                  eachColumn.methods.forEach(function(method){
+                    createLinks(method.loc[0]);  
+                  });
+              } else if (eachColumn.type === 'externalRefType') {
+                  eachColumn.vars.forEach(function(eachVar){
+                    createLinks(eachVar);  
+                  });
+              }
+              else{
                 createLinks(eachColumn.loc.split('#'));
               }
             });
@@ -332,29 +399,61 @@
                   return true;
                 }
               }
-              if(typeInfo.type == "internalRef") {
-                var lineInfo = typeInfo.parentLine.split("#"),childLine = typeInfo.childLine.split("#"),
+
+              if(typeInfo.type == "externalRefType") {
+                var typeVars = typeInfo.vars;
+                    columnValue = target.attributes['data-column-number'];
+
+                typeVars.forEach(function(eachVar){
+                  if(columnValue && columnValue.value == eachVar[1]){ 
+                    sourceFile = typeInfo.fqt;
+                    return true;
+                  }
+                });
+              }
+
+              if(typeInfo.type == "externalRefMethod") {
+                var methods = typeInfo.methods;
+                    columnValue = target.attributes['data-column-number'];
+
+                methods.forEach(function(method){
+                  method.loc.forEach(function(eachLoc){
+                    if(columnValue && columnValue.value == eachLoc[1]){ 
+                      sourceFile = typeInfo.fqt;
+                      model.sessionStorage.setValue('methodInfo',method);
+                      return true;
+                    }
+                  });
+                });
+              }
+
+              if(typeInfo.type == "internalRefChild") {
+                var lineInfo = typeInfo.p, childLinesInfo = typeInfo.c,
                     columnValue = target.attributes['data-column-number'].value;                
 
-                if(columnValue == childLine[1].trim() && childLine[0] != lineInfo[0]){    
-                  scrollAndSelect(lineInfo,target);
-                  return true;
-                }else if(columnValue == childLine[1].trim()){
-                  var childLines = getChildLines(lineInfo), internalReferences = [];
-                  childLines.forEach(function(eachLine){
-                    var line = eachLine.split('#'),refereceObj = {}, 
-                        child = $("li[data-line-number="+line[0]+"]"),
-                        codeSnippet = child.text().trim(),
-                        selectedText = target.innerHTML.trim();
-                    codeSnippet = codeSnippet.replace(selectedText,"<b>"+selectedText+"</b>");
-                    createBoldLink(child,selectedText);
-                    refereceObj.snippet = codeSnippet;
-                    refereceObj.references = eachLine;
-                    internalReferences.push(refereceObj);
-                  });
-                  showInternalReferences(internalReferences,{left:event.pageX, top:event.pageY+10});
-                  return true;
-                }
+                childLinesInfo.forEach(function(childLine){
+                  if(columnValue == childLine[1] && childLine[0] != lineInfo[0]){    
+                    scrollAndSelect(lineInfo,target);
+                    return true;
+                  }
+                });
+              }
+
+              if(typeInfo.type == 'internalRefParent') {
+                var childLines = typeInfo.c, internalReferences = [];
+                childLines.forEach(function(eachLine){
+                  var line = eachLine,refereceObj = {}, 
+                      child = $("li[data-line-number="+line[0]+"]"),
+                      codeSnippet = child.text().trim(),
+                      selectedText = target.innerHTML.trim();
+                  codeSnippet = codeSnippet.replace(selectedText,"<b>"+selectedText+"</b>");
+                  createBoldLink(child,selectedText);
+                  refereceObj.snippet = codeSnippet;
+                  refereceObj.references = eachLine;
+                  internalReferences.push(refereceObj);
+                });
+                showInternalReferences(internalReferences,{left:event.pageX, top:event.pageY+10});
+                return true;
               }
             });
 
@@ -404,12 +503,13 @@
 
         function getMatchedSourceFiles(sourceFile, event) {
           var request = createGETRequest('must',sourceFile,'fileTypes.fileType');
-          var url = model.config.esURL + "/filemetadata/typefilemetadata/_search?source="+request;
+          var url = model.config.esURL + "/metadata?type="+sourceFile;
           http.get(url)
           .then(function(response) {
             hideLoader(event);
-            showDropDown(response.hits.hits, {left:event.pageX, top:event.pageY+10});
-            parseFileMetadata(response.hits.hits);
+            var extRes = response;
+            showDropDown(extRes, {left:event.pageX, top:event.pageY+10});
+            parseFileMetadata(extRes);
           });
         }
 
@@ -445,8 +545,8 @@
             matchedSourceFiles.forEach(function(sourceFile) {
               var a = document.createElement("a");
               a.className = 'external-ref';
-              a.textContent = sourceFile._source.fileName;
-              a.href = "./../explore?filename="+sourceFile._source.fileName;
+              a.textContent = sourceFile.fileName;
+              a.href = "./../explore?filename="+sourceFile.fileName;
               doc.appendChild(a);
             });
           }
@@ -457,7 +557,7 @@
         function gotoLine(event){
           var lineInfo = event.currentTarget.attributes['data-line-info'].value;
           closePopUp();
-          scrollAndSelect(lineInfo.split('#'));
+          scrollAndSelect(lineInfo.split(','));
         }
 
         function createInternalRefDiv(references) {
@@ -470,9 +570,12 @@
             span.textContent = "Couldn't find external/internal references";
             doc.appendChild(span);
           }else{
+            var references = references.sort(function(ref1,ref2){
+              return ref1.references[0] > ref2.references[0];
+            });
             references.forEach(function(lineInfo) {
               //var template = "<div onclick=gotoLine(event)><span>"+lineDetails[0]+":"+lineDetails[1]+"</span><span data-line-info="+lineInfo.references+">"+lineInfo.snippet+"</span></div"
-              var lineDetails = lineInfo.references.split('#'),
+              var lineDetails = lineInfo.references,
                   div = document.createElement("div");
               div.setAttribute('data-line-info',lineInfo.references);
               div.onclick = gotoLine;

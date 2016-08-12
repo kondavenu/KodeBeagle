@@ -6,7 +6,8 @@
     '$rootScope',
     'docsService',
     '$document',
-    function(model, $location, $rootScope, docsService, $document) {
+    'http',
+    function(model, $location, $rootScope, docsService, $document, http) {
 
 
       docsService.config(model.config);
@@ -60,15 +61,15 @@
           }, function(params) {
             model.currentPageNo = 0;
             var queryParams = $location.search();
-            var selectedTexts = queryParams.searchTerms;
-             model.repos = false;
+            var selectedTexts = JSON.parse(queryParams.searchTerms);
+            model.repos = false;
             model.selectedTexts = [];
             $rootScope.editorView = false;
             model.showErrorMsg = false;
 
             if (selectedTexts) {
-              model.selectedTexts = selectedTexts.split(',');
-              model.searchedData = model.selectedTexts.join( ', ' );
+              model.selectedTexts = selectedTexts;
+              model.searchedData = _.pluck(model.selectedTexts, 'term').join(', ');
               model.searchOptions.selectedSearchType = queryParams.searchType;
               if(model.searchOptions.selectedSearchType === model.langConstants.JAVA_SCRIPT){
                 model.searchOptions.langType = 'js';
@@ -76,8 +77,11 @@
               else{
                 model.searchOptions.langType = 'java'
               }
-              model.showPageResponse = false;
-              docsService.search( {
+              model.showPageResponse = true;
+              $rootScope.editorView = true;
+              docsService.searchRequest(model.selectedTexts);
+              
+              /*docsService.search( {
                 queryString: selectedTexts,
                 callback: function( obj ) {
                   model.showErrorMsg = false;
@@ -178,9 +182,8 @@
                   }
 
                 }
-              } );
+              } );*/
               document.getElementById( 'searchText' ) && document.getElementById( 'searchText' ).blur();
-              $rootScope.editorView = true;
               model.isCode = false;
               model.packages = false;
 

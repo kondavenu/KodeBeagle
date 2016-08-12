@@ -101,12 +101,16 @@
           var search = $location.search();
           var pkgs = model.packages;
           var innerQuery;
+
+          var types = [];
+
           for(var p in pkgs ) {
             innerQuery = [];
 
             for(var m in pkgs[ p ].methods ) {
               if( pkgs[p].methods[m] ) {
                 innerQuery.push( m );
+                types.push({type:'method', term: p+'.'+m+'()'});    
               } else {
                 delete pkgs[p].methods[m];
               }
@@ -115,7 +119,9 @@
               delete pkgs[ p ];
             } 
           }
-          search.filter = JSON.stringify( model.packages );
+          model.filterSelected = true;
+          search.searchTerms = JSON.stringify(types);
+          //search.filter = JSON.stringify( model.packages );
           $location.search( search  );
       };
 

@@ -3,6 +3,7 @@
 	margin: 0 auto;
 
 	.search-main-container{
+		position: relative;
 		width:100%;
 		.drop-down-container{
 			float:left;
@@ -45,6 +46,34 @@
 		    right: 10px;
 		    top: 15px;
 		    font-size: 12px;
+		}
+
+		.type-ahead-wrapper {
+		    position: absolute;
+		    top: 45px;
+		    background: #fff;
+		    width: 42.1em;
+		    border: solid 1px #ddd;
+		    max-height: 200px;
+		    overflow-y: auto;
+		    z-index: 3;
+		    ul {
+			    list-style: none;
+			    text-align: left;
+			    width: 100%;
+			    padding-left: 0px;
+			    cursor: default;
+
+
+			    li {
+    				padding: 10px;
+			    }
+
+			    li:hover {
+			    	background: #337ab7;
+    				color: #fff;
+			    }
+		    }
 		}
 	}	
 }

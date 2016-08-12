@@ -44,7 +44,8 @@
         }
         window.scrollTo(0, 0);
         model.currentPageNo = pageNo - 1;
-        KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
+        docsService.searchRequest(model.selectedTexts);
+        //KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
 
       }
 
@@ -53,7 +54,8 @@
         e.preventDefault();
         if( cond ) {
           model.currentPageNo--;
-          KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
+          docsService.searchRequest(model.selectedTexts);
+          //KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
         }
 
       }
@@ -63,7 +65,8 @@
         e.preventDefault();
         if( cond ) {
           model.currentPageNo++;
-          KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
+          docsService.searchRequest(model.selectedTexts);
+          //KB.updateEditorsList( docsService.getData( 'processedData' ).result,  model.packages, model, docsService );
         }
 
       }

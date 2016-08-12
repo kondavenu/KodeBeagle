@@ -1,0 +1,47 @@
+---
+title: KodeBeagle
+layout: repository
+stylesheet: explore/index.css
+basepath: ../
+---
+{% raw %}
+<div class="container repository" style="max-width: 900px">
+    <div ng-controller="explorerController" style="margin-top: 20px;">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          {{fileInfo.fileName}}
+        </div>
+        <div class="panel-body" ng-click="getMatchedTypes($event)">
+          <code-mirror lang="{{model.searchOptions.langType}}" 
+            model="fileInfo.fileContent" line-numbers="true">
+          </code-mirror> 
+        </div>
+      </div>
+    </div>
+</div>
+{% endraw %}
+
+<script type="text/javascript">
+    basepath = '../';
+</script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/3.9.3/lodash.min.js" type="text/javascript"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/fullPage.js/2.6.6/jquery.fullPage.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.9/angular.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/angular.js/1.3.9/angular-animate.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.2/ui-bootstrap.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.2/ui-bootstrap-tpls.js"></script>
+<script src="../library/dev/js/vendors/angular-code-mirror.js"></script>
+<script src="../library/dev/js/factories/http-service.js"></script>
+<script src="../library/dev/js/modules/session-storage.js"></script>
+<script type="text/javascript">
+    (function( angular, kb ) {
+      window.KB = kb;
+      kb.module = angular.module('KodeBeagleFileExplore', 
+          ['httpSerivice', 'ui.bootstrap',
+            'ngAnimate', 'ng-code-mirror']);
+    })(angular, window.KB || {} );
+</script>
+<script src="../library/dev/js/constants/global-constants.js"></script>
+<script src="../library/dev/js/factories/model-factory.js"></script>
+<script src="../library/dev/js/controller/explorer-controller.js"></script>

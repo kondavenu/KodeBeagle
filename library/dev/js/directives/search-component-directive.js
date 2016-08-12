@@ -29,11 +29,13 @@ $(document).bind( 'keydown', function( e ) {
     '$rootScope',
     'model',
     '$location',
+    'http',
     function(
       $scope,
       $rootScope,
       model,
-      $location
+      $location,
+      http
     ) {
 
       $scope.model = model;
@@ -74,20 +76,24 @@ $(document).bind( 'keydown', function( e ) {
         //$scope.showRequiredMsg = false;
         if( !model.isCode) {
           if ( model.searchText ) {
-            model.selectedTexts.push(model.searchText);
+            var type = {
+              "term": model.searchText,
+              "type": "word"
+            };
+            model.selectedTexts.push(type);
             model.searchText = '';
           }
 
-          var searchTerm = model.selectedTexts.join(',');
+          var searchTerm = JSON.stringify(model.selectedTexts);
           var searchType = model.searchOptions.selectedSearchType;
           if ( searchTerm ) {
-            if( model.searchPage ) {
+            if( model.searchPage && Object.keys($location.search()).length) {
               var search = $location.search();
               search.searchTerms = searchTerm;
               search.searchType = searchType;
               $location.search( search );
-              
-              $rootScope.editorView = true;  
+              model.filterSelected = false;
+              $rootScope.editorView = true;
             } else {
               window.location = 'search/#?searchTerms=' + searchTerm+'&searchType='+searchType;
             }
@@ -138,12 +144,16 @@ $(document).bind( 'keydown', function( e ) {
       }
 
       $scope.handleSearchText = function(e) {
-        
+        var type = {};
         /*on press of tab( 9 keycode ) and if model.searchText present the create a new search term*/
         if ( e.keyCode === 9 && model.searchText ) {
-
-            model.selectedTexts.push(model.searchText);
+            type = {
+              "term": model.searchText,
+              "type": "word"
+            };
+            model.selectedTexts.push(type);
             model.searchText = '';
+            $scope.isOpen = false;
             e.preventDefault();
             return false;
         }
@@ -151,7 +161,12 @@ $(document).bind( 'keydown', function( e ) {
         /*on press of space( 32 keycode ) or comma( 188 keycode ) then create the new search term with model.searchText */
         if ( e.keyCode === 32 || e.keyCode === 188 ) {
           if (model.searchText) {
-            model.selectedTexts.push(model.searchText);
+            type = {
+              "term": model.searchText,
+              "type": "word"
+            };
+            model.selectedTexts.push(type);
+            $scope.isOpen = false;
             model.searchText = '';
           }
           e.preventDefault();
@@ -161,8 +176,39 @@ $(document).bind( 'keydown', function( e ) {
         /*on press backspace and dont have any text in the textbox*/
         if ( doGetCaretPosition(e.target) === 0 && e.keyCode === 8 ) {
           model.selectedTexts.pop();
+          $scope.searchTypes = [];
+          $scope.isOpen = false;
           return;
         }
+
+        $scope.getTypeText();
+      };
+
+      $scope.getTypeText = function() {
+        if ($scope.searchText === model.searchText) {
+          return;
+        }
+        $scope.searchText = model.searchText;
+        return http.get(model.config.esURL + "/suggest?text=" + model.searchText)
+        .then(function(res) {
+          var types = [];
+          if (res) {
+            res.types.forEach(function(eachObj){
+              types.push({type:'type', term: eachObj.text});
+            });
+            res.props.forEach(function(eachObj){
+              types.push({type:'method', term: eachObj.payload.type+'.'+eachObj.text+'()'});
+            });
+          }
+          $scope.searchTypes = types;
+          $scope.isOpen = (types.length > 0);
+        });
+      };
+
+      $scope.selectMatch = function(index) {
+        model.selectedTexts.push($scope.searchTypes[index]);
+        $scope.isOpen = false;
+        model.searchText = '';
       };
     }
   ])

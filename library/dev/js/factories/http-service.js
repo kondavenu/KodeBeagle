@@ -19,6 +19,10 @@
         //console.log( 'all requests will go through this even and this is final' ) ;
         return data;
       }];
+      $httpProvider.defaults.headers.common = {};
+      $httpProvider.defaults.headers.post = {};
+      $httpProvider.defaults.headers.put = {};
+      $httpProvider.defaults.headers.patch = {};
       $httpProvider.interceptors.push(function($q) {
         return {
           request: function(config) {
