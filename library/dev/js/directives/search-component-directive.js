@@ -238,34 +238,42 @@ $(document).bind( 'keydown', function( e ) {
             if ($scope.searchText === model.searchText) {
               return;
             }
+            $scope.searching = true;
             $scope.searchText = model.searchText;
             return http.get(model.config.esURL + "/suggest/" + model.searchText)
-                .then(function(res) {
-                  var types = [];
-                  if (res) {
-                    var htmlTerm, searchedText;
-                    res.types.forEach(function(eachObj){
-                      searchedText = eachObj.text.match(new RegExp(model.searchText,'i'));
-                      if(searchedText) {
-                        searchedText = searchedText[0];
-                      }
-                      htmlTerm = $sce.trustAsHtml(eachObj.text.replace(new RegExp(model.searchText, "i"),"<b class='bolder'>"+searchedText+"</b>"));
-                      types.push({type:'type', term: eachObj.text, htmlTerm: htmlTerm});
-                    });
-                    res.props.forEach(function(eachObj){
-                      var propsTerm = eachObj.payload.type+'.'+eachObj.text+'()';
-                      searchedText = propsTerm.match(new RegExp(model.searchText,'i'));
-                      if(searchedText) {
-                        searchedText = searchedText[0];
-                      }
-                      htmlTerm = $sce.trustAsHtml(propsTerm.replace(new RegExp(model.searchText, "i"),"<b class='bolder'>"+searchedText+"</b>"));
-                      types.push({type:'method', term: propsTerm, htmlTerm: htmlTerm});
-                    });
-                  }
-                  $scope.searchTypes = types;
-                  $scope.isOpen = (types.length > 0);
-                });
+                .then(autoSuggestHandler, autoSuggestFailure);
           };
+
+          function autoSuggestHandler(res) {
+            $scope.searching = false;
+            var types = [];
+            if (res) {
+              var htmlTerm, searchedText;
+              res.types.forEach(function(eachObj){
+                searchedText = eachObj.text.match(new RegExp(model.searchText,'i'));
+                if(searchedText) {
+                  searchedText = searchedText[0];
+                }
+                htmlTerm = $sce.trustAsHtml(eachObj.text.replace(new RegExp(model.searchText, "i"),"<b class='bolder'>"+searchedText+"</b>"));
+                types.push({type:'type', term: eachObj.text, htmlTerm: htmlTerm});
+              });
+              res.props.forEach(function(eachObj){
+                var propsTerm = eachObj.payload.type+'.'+eachObj.text+'()';
+                searchedText = propsTerm.match(new RegExp(model.searchText,'i'));
+                if(searchedText) {
+                  searchedText = searchedText[0];
+                }
+                htmlTerm = $sce.trustAsHtml(propsTerm.replace(new RegExp(model.searchText, "i"),"<b class='bolder'>"+searchedText+"</b>"));
+                types.push({type:'method', term: propsTerm, htmlTerm: htmlTerm});
+              });
+            }
+            $scope.searchTypes = types;
+            $scope.isOpen = (types.length > 0);
+          }
+
+          function autoSuggestFailure(error) {
+            $scope.searching = false;
+          }
 
           $scope.selectMatch = function(index) {
             model.selectedTexts.push($scope.searchTypes[index]);

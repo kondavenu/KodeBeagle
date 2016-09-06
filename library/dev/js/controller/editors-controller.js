@@ -18,8 +18,6 @@
         heading: 'Methods'
       }];
 
-      
-
       $scope.calcTop = function( snipp, line ) {
         var val = line.lineNumber - snipp.start;
         var totHeight = $(snipp.ele).closest( '.snippet-holder' ).height();

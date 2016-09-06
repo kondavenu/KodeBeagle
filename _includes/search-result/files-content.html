@@ -1,145 +1,131 @@
 {% raw %}
   <div  ng-if="!model.emptyResponse">
     <div>
-        <div class="row page-nation-summary">
-            <div class="col-sm-9">
-                Showing files from <strong>{{model.currentPageNo*model.pageResultSize + 1}}</strong> to
-                <strong>
-                    <span ng-show="model.currentPageNo*model.pageResultSize + model.pageResultSize<model.totalFiles">
-                        {{model.currentPageNo*model.pageResultSize + model.pageResultSize}}
-                    </span>
-                    <span ng-show="model.currentPageNo*model.pageResultSize + model.pageResultSize>=model.totalFiles">
-                        {{model.totalFiles}}
-                    </span>
-                </strong>
-                <!-- out of <strong>{{model.totalFiles}}</strong> files -->
-                <span ng-if="model.totalHitCount !== model.hitCount">
-                ( total matches <strong>{{model.totalHitCount}}</strong>  )
-                </span>
+      <div class="row page-nation-summary">
+        <div class="col-sm-9">
+          Showing files from <strong>{{model.currentPageNo*model.pageResultSize + 1}}</strong> to
+          <strong>
+            <span ng-show="model.currentPageNo*model.pageResultSize + model.pageResultSize<model.totalFiles">
+                {{model.currentPageNo*model.pageResultSize + model.pageResultSize}}
+            </span>
+            <span ng-show="model.currentPageNo*model.pageResultSize + model.pageResultSize>=model.totalFiles">
+                {{model.totalFiles}}
+            </span>
+          </strong>
+          <!-- out of <strong>{{model.totalFiles}}</strong> files -->
+          <span ng-if="model.totalHitCount !== model.hitCount">
+          ( total matches <strong>{{model.totalHitCount}}</strong>  )
+          </span>
 
-                <div style="margin-left: 20px; display: inline-block" class="pull-right">
-                    <span class="inline-block">Code Snippets:</span>
-                    <div class="btn-group" role="group">
-                        <button type="button" ng-click="toggleCodeSnippets($event)" class="btn btn-default" ng-class="{'active' : model.toggelSnippet}">Show
-                        </button>
-                        <button type="button" ng-click="toggleCodeSnippets($event)" class="btn btn-default" ng-class="{'active' : !model.toggelSnippet}">Hide
-                        </button>
-                    </div>
-                </div>
+          <div style="margin-left: 20px; display: inline-block" class="pull-right">
+            <span class="inline-block">Code Snippets:</span>
+            <div class="btn-group" role="group">
+              <button type="button" ng-click="toggleCodeSnippets($event)" class="btn btn-default" ng-class="{'active' : model.toggelSnippet}">Show
+              </button>
+              <button type="button" ng-click="toggleCodeSnippets($event)" class="btn btn-default" ng-class="{'active' : !model.toggelSnippet}">Hide
+              </button>
             </div>
+          </div>
         </div>
+      </div>
     </div>
 
     <div class="row">
-        <div class="col-sm-9 editor-section-wrapper">
-            <div ng-if="!model.filterNotFound">
-              <div ng-if="model.editors && model.editors.length>0" data-step="3" data-intro="Results">
-                  <div ng-class="{'file-list-view': !model.toggelSnippet }">
-                      <div ng-repeat="item in model.editors track by $index" class="editor-container" ng-class="{'hide':model.expandedItem && model.expandedItem != item }">
-                          <div class="panel panel-default editor">
-                              <div class="panel-heading"  ng-dblclick="fullExpandView( $event, item, $index )">
-                                  <div class="pull-left">
-                                      <span ng-click="toggleExpand( $event, $index, item );" 
-                                            class="fa fa-expand" ng-class=
-                                          "{'fa-compress':item.collapsed}">
-                                      </span>
-                                      <a
-                                      ng-href="./../explorerepo?filename={{item.fileInfo.path}}" 
-                                      target="_self" tooltip-placement="right" tooltip="Explore">    
-                                          {{item.fileInfo.repo}}
-                                      </a>
-                                      /
-                                      <a
-                                      ng-href="./../explore?filename={{item.fileInfo.path}}" 
-                                      target="_self" tooltip-placement="right" tooltip="Explore">    
-                                          {{item.fileInfo.name}}
-                                      </a>
-                                  </div>
-                                  <div class="pull-right" >
-                                      <a href="#" ng-click="fullExpandView( $event, item, $index )" class="fa"
-                                          tooltip-placement="top" ng-class=" hideLeftPanel ? 'fa-times': 'fa-arrows-alt'"tooltip="{{!hideLeftPanel&&'FullScreen' || 'Exit FullScreen'}}"
-                                      >
-                                      </a>
+      <div class="col-sm-9 editor-section-wrapper">
+        <div ng-if="!model.filterNotFound">
+          <div ng-if="model.editors && model.editors.length>0" data-step="3" data-intro="Results">
+            <div ng-class="{'file-list-view': !model.toggelSnippet }">
+              <div ng-repeat="item in model.editors track by $index" class="editor-container" ng-class="{'hide':model.expandedItem && model.expandedItem != item }">
+                <div class="panel panel-default editor">
+                  <div class="panel-heading"  ng-dblclick="fullExpandView( $event, item, $index )">
+                    <div class="pull-left">
+                      <span ng-click="toggleExpand( $event, $index, item );" 
+                            class="fa fa-expand" ng-class=
+                          "{'fa-compress':item.collapsed}">
+                      </span>
+                      <a ng-href="./../explorerepo?filename={{item.fileInfo.path}}" 
+                          target="_self" tooltip-placement="right" tooltip="Explore">    
+                          {{item.fileInfo.repo}}</a>
+                      /
+                      <a ng-href="./../explore?filename={{item.fileInfo.path}}" 
+                          target="_self" tooltip-placement="right" tooltip="Explore">    
+                          {{item.fileInfo.name}}</a>
+                    </div>
+                    <div class="pull-right" >
+                      <a href="#" ng-click="fullExpandView( $event, item, $index )" class="fa"
+                          tooltip-placement="top" ng-class=" hideLeftPanel ? 'fa-times': 'fa-arrows-alt'"tooltip="{{!hideLeftPanel&&'FullScreen' || 'Exit FullScreen'}}"></a>
 
-                                      <a ng-href="http://github.com/{{item.fileInfo.path}}" target="_blank" class="fa fa-github"
-                                      >
-                                      </a>
-                                  </div>
-                              </div>
-                              <div class="panel-body" ng-show="item.showBody || model.toggelSnippet" >
-                                  <div style="position: relative">
-                                      <div class="snippet-wraper">
-                                          <div class="snippet-holder">
-                                              <div ng-repeat="snipp in item.linesData" class="snipp" ng-class="{'codeshown':snipp.state || snipp.show}" code-snipp-ele>
-                                                  <div class="code" ng-class="{'collapsable-code':!snipp.state}" >
-                                                    <code-mirror lang="{{model.searchOptions.langType}}" line-numbers="snipp.start + 1" model="snipp.content" code-mirror-ready
-                                                    row-heilight="snipp.lineNumbers"
-                                                    >
-                                                    </code-mirror>
-                                                  </div>
-                                                  <pre class='dots' ng-if="!snipp.state"><span ng-click="toggleCode( snipp )"></span></pre>
-                                              </div>
-                                          </div>
-                                      </div>
-
-                                      <span ng-repeat="snipp in item.linesData" ng-if="snipp.state"  >
-                                          <span ng-repeat="line in snipp.lineNumbers track by $index" ng-style="calcTop( snipp, line )"
-                                          class="mark"
-                                          ng-click="goToTop( snipp, line )"></span>
-                                      </span>
-                                  </div>
-                              </div>
-                          </div>
-                      </div>
-
-                      <div class="page-nation col-sm-12" >
-                          <ul class="pagination" ng-controller="pageNationCtrl" data-step="5" data-intro="page nation">
-                              <li ng-class="{'disabled':model.currentPageNo === 0}">
-                                  <a href="#" ng-click="loadPrev( $event, model.currentPageNo !== 0 )">
-                                      <<
-                                  </a>
-                              </li>
-
-                              <li ng-repeat="i in getRange()" ng-class="{'current': model.currentPageNo+1 === i}">
-                                  <a href="#" ng-click="loadPageResult( $event, i )">
-                                      {{i}}
-                                  </a>
-                              </li>
-
-                              <li ng-class="{'disabled':model.currentPageNo+1 === model.totalPages }">
-                                  <a href="#" ng-click="loadNext( $event, model.currentPageNo+1 !== model.totalPages )">
-                                      >>
-                                  </a>
-                              </li>
-                          </ul>
-                      </div>
+                      <a ng-href="http://github.com/{{item.fileInfo.path}}" target="_blank" class="fa fa-github"></a>
+                    </div>
                   </div>
+                  <div class="panel-body" ng-show="item.showBody || model.toggelSnippet" >
+                    <div style="position: relative">
+                      <div class="snippet-wraper">
+                        <div class="snippet-holder">
+                          <div ng-repeat="snipp in item.linesData track by $index" class="snipp" ng-class="{'codeshown':snipp.state || snipp.show}" code-snipp-ele>
+                            <div class="code" ng-class="{'collapsable-code':!snipp.state}" >
+                              <code-mirror lang="{{model.searchOptions.langType}}" line-numbers="snipp.start + 1" model="snipp.content" code-mirror-ready
+                              row-heilight="snipp.lineNumbers"
+                              >
+                              </code-mirror>
+                            </div>
+                            <pre class='dots' ng-if="!snipp.state"><span ng-click="toggleCode( snipp )"></span></pre>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span ng-repeat="snipp in item.linesData track by $index" ng-if="snipp.state"  >
+                          <span ng-repeat="line in snipp.lineNumbers track by $index" ng-style="calcTop( snipp, line )"
+                          class="mark"
+                          ng-click="goToTop( snipp, line )"></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="page-nation col-sm-12" >
+                <ul class="pagination" ng-controller="pageNationCtrl" data-step="5" data-intro="page nation">
+                  <li ng-class="{'disabled':model.currentPageNo === 0}">
+                    <a href="#" ng-click="loadPrev( $event, model.currentPageNo !== 0 )"><<</a>
+                  </li>
+
+                  <li ng-repeat="i in getRange()" ng-class="{'current': model.currentPageNo+1 === i}">
+                    <a href="#" ng-click="loadPageResult( $event, i )">{{i}}</a>
+                  </li>
+
+                  <li ng-class="{'disabled':model.currentPageNo+1 === model.totalPages }">
+                    <a href="#" ng-click="loadNext( $event, model.currentPageNo+1 !== model.totalPages )">>></a>
+                  </li>
+                </ul>
               </div>
             </div>
-            <div ng-if="model.filterNotFound">
-                <p>Could not find any match for filter  </p>
-            </div>
-            <div ng-if="(model.editors && model.editors.length === 0 && !model.filterNotFound)">
-                <div class="text-center">loading...</div>
-            </div>
+          </div>
         </div>
-        {% endraw %}
-        <div class="col-sm-3 methods-section-wrapper">
-            {% include search-result/methods.html %}
+        <div ng-if="model.filterNotFound">
+            <p>Could not find any match for filter  </p>
         </div>
+        <div class="loader-container" 
+              ng-if="(model.editors && model.editors.length === 0 && !model.filterNotFound)">
+            <div class="loader"></div>
+        </div>
+      </div>
+      {% endraw %}
+      <div class="col-sm-3 methods-section-wrapper">
+          {% include search-result/methods.html %}
+      </div>
     </div>
   </div>
   {% raw %}
   <div ng-if="model.emptyResponse" class="no-result">
     <div class="message">
-        <p>Ooops.... did not find any thing</p>
-        <div ng-if="model.suggestions.length">
-            <p>Try below combination</p>
-            <div ng-repeat="item in model.suggestions">
-                <a ng-href="#?searchTerms={{item}}">{{item}}</a>
-            </div>
+      <p>Ooops.... did not find any thing</p>
+      <div ng-if="model.suggestions.length">
+        <p>Try below combination</p>
+        <div ng-repeat="item in model.suggestions track by $index">
+            <a ng-href="#?searchTerms={{item}}">{{item}}</a>
         </div>
+      </div>
     </div>
-
   </div>
   {% endraw %}

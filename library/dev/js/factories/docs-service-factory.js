@@ -2,12 +2,12 @@
 
 	module
   .factory('docsService', [
-    'http','model', '$http',
+    'http','model', '$http', '$interval',
     function(
-      http,model,$http
+      http,model,$http, $interval
     ) {
 
-      var settings;
+      var settings, editors = [], editorIndex = 0, editorInterval;
 
       function restructureData(hits){
           var hitsData = angular.copy(hits);
@@ -288,12 +288,12 @@
       }
 
 
-      function splitFileContent ( fileContent, fileInfo, offset ) {
+      function splitFileContent ( fileObj, offset ) {
         return {
-          content: fileContent,
-          fileInfo: fileInfo,
-          linecount: fileContent.split( '\n' ).length + 1,
-          linesData: getlinesObj( fileContent, fileInfo.lines, offset )
+          content: fileObj.content,
+          fileInfo: fileObj.fileInfo,
+          linecount: fileObj.content.split( '\n' ).length + 1,
+          linesData: getlinesObj( fileObj.content, fileObj.fileInfo.lines, offset )
         }
       }
 
@@ -323,59 +323,82 @@
       }
 
       function searchTypes(searchRequest) {
-        model.editors = [];
+        model.editors = [], editors = [];
         model.emptyResponse = false;
         model.filterNotFound = false;
 
         $http.get(settings.esURL + '/search?query='+searchRequest)
-        .then(function(result){
-          if (result && result.data && result.data.hits.length === 0) {
-            model.emptyResponse = true;
-            return;
-          }
-          model.showPageResponse = true;
-          model.totalFiles = result.data.total_hits;
-          model.totalHitCount = result.data.total_hits;
-          var linesObj,linesData = [], imports = {};
+        .then(searchResultHandler , searchErrorHandler);
+      }
 
-          result.data.hits.forEach(function(eachFile){
-            var lines = [];
-            eachFile.types.forEach(function(eachType){
-              imports[eachType.name] = eachType.name;
-              eachType.props.forEach(function(eachProp){
-                eachProp.lines.forEach(function(eachLine){
-                  linesObj = {'lineNumber':eachLine[0],'columnStart':eachLine[1],'columnEnd':eachLine[2]}
-                  lines.push(linesObj);
-                });
+      function searchResultHandler(result) {
+        if (result && result.data && result.data.hits.length === 0) {
+          model.emptyResponse = true;
+          return;
+        }
+        model.showPageResponse = true;
+        model.totalFiles = result.data.total_hits;
+        model.totalHitCount = result.data.total_hits;
+        var linesObj, imports = {};
+
+        result.data.hits.forEach(function(eachFile){
+          var lines = [];
+          eachFile.types.forEach(function(eachType){
+            imports[eachType.name] = eachType.name;
+            eachType.props.forEach(function(eachProp){
+              eachProp.lines.forEach(function(eachLine){
+                linesObj = {'lineNumber':eachLine[0], 'columnStart':eachLine[1], 'columnEnd':eachLine[2]};
+                lines.push(linesObj);
               });
             });
-            var sortedLined = uniqueAndSortLines(lines);
-            var labels = getFileName(eachFile.fileName);
-            var fileObj = {
-              'content':eachFile.fileContent,
-              'fileInfo':{
-                'lines':sortedLined,
-                'repo': labels.repo,
-                'name': labels.file,
-                'path':eachFile.fileName
-              }
-            };
-            linesData.push(fileObj);
           });
-
-          if( !model.filterSelected ) {
-            $http.get(settings.esURL + '/properties?types=' + JSON.stringify(Object.keys(imports)))
-            .then(importsHandler);
-          }
-
-          var editors = [];
-          for (var i=0; i<linesData.length; i++) {
-            editors.push(splitFileContent( linesData[i].content, linesData[i].fileInfo, model.config.offset || 2 ));
-          }
-          model.editors = editors;
-        }, function(error){
-          model.emptyResponse = true;
+          var sortedLines = uniqueAndSortLines(lines);
+          var labels = getFileName(eachFile.fileName);
+          var fileObj = {
+            'content':eachFile.fileContent,
+            'fileInfo': {
+              'lines': sortedLines,
+              'repo': labels.repo,
+              'name': labels.file,
+              'path': eachFile.fileName
+            }
+          };
+          var editorContent = splitFileContent( fileObj, model.config.offset || 2 );
+          editors.push(editorContent);
         });
+
+        editorIndex = 0;
+        editorInterval = $interval(renderEditor,200);
+
+        if( !model.filterSelected ) {
+          $http.get(settings.esURL + '/properties?types=' + JSON.stringify(Object.keys(imports)))
+          .then(importsHandler);
+        }
+
+        /*var editors = [];
+        for (var i=0; i<linesData.length; i++) {
+          (function (n) {
+            $timeout(function() {
+              model.editors.push(splitFileContent( linesData[n].content, linesData[n].fileInfo, model.config.offset || 2 ))
+              console.log('Editor : ' + n);
+            }, 0);
+          })(i);
+        }*/
+      }
+
+      function renderEditor() {
+        console.log('Inside interval : '+editorIndex);
+        if (editorIndex < editors.length) {
+          model.editors.push(editors[editorIndex]);
+          editorIndex++;
+        } else {
+          $interval.cancel(editorInterval);
+          editorInterval = undefined;
+        }
+      }
+
+      function searchErrorHandler(error) {
+        model.emptyResponse = true;
       }
 
       function importsHandler(res) {
@@ -388,7 +411,6 @@
         config: function( obj ) {
           settings = obj
         },
-        splitFileContent: splitFileContent,
         setData: function  ( key, value ) {
           this[ key ] = value;
         },
